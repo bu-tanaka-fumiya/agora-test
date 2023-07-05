@@ -3,10 +3,9 @@ import Host from "./host";
 import Audience from "./audience";
 import Prepare from "./prepare";
 
-const appId = "6cc8b28e68db4013be54c0b24df29386";
-
 const App = React.memo(() => {
-  const { role, uid, channel } = React.useMemo(() => {
+  const { appId, channel, role, uid } = React.useMemo(() => {
+    let appId = "";
     let channel = "";
     let role = "";
     let uid = "";
@@ -14,7 +13,9 @@ const App = React.memo(() => {
       .replace("?", "")
       .split("&")
       .forEach((searchStr) => {
-        if (/channel=/.test(searchStr)) {
+        if (/appId=/.test(searchStr)) {
+          appId = searchStr.replace("appId=", "");
+        } else if (/channel=/.test(searchStr)) {
           channel = searchStr.replace("channel=", "");
         } else if (/role=(host|audience)/.test(searchStr)) {
           role = searchStr.replace("role=", "");
@@ -23,17 +24,17 @@ const App = React.memo(() => {
         }
       });
 
-    return { role, uid, channel };
+    return { appId, channel, role, uid };
   }, []);
 
-  return role && channel ? (
+  return appId && channel && role && uid ? (
     role === "host" ? (
       <Host {...{ appId, channel, uid }} />
     ) : role === "audience" ? (
       <Audience {...{ appId, channel, uid }} />
     ) : null
   ) : (
-    <Prepare />
+    <Prepare {...{ appId, channel }} />
   );
 });
 

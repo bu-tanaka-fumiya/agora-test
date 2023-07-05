@@ -33,6 +33,7 @@ const useAgora = ({
       setVolume: (volume: number) => void;
       muted: boolean;
       setMuted: (muted: boolean) => void;
+      volumeLevel: number;
     }[]
   >([]);
 
@@ -50,6 +51,7 @@ const useAgora = ({
       setVolume: (volume: number) => void;
       muted: boolean;
       setMuted: (muted: boolean, volume: number) => void;
+      volumeLevel: number;
     }[]
   >([]);
 
@@ -104,6 +106,7 @@ const useAgora = ({
                     )
                   );
                 },
+                volumeLevel: microphoneTrack.getVolumeLevel(),
               },
             ]);
             // } else if (device.kind === "videoinput") {
@@ -147,6 +150,25 @@ const useAgora = ({
 
     await client.leave();
   }, [client, localAudios]);
+
+  // const updateSpeakerVolumeLevel = React.useCallback(
+  //   (
+  //     volumes: {
+  //       level: number;
+  //       uid: UID;
+  //     }[]
+  //   ) => {
+  //     setRemoteAudioUsers((remoteAudioUsers) =>
+  //       remoteAudioUsers.map((remoteAudioUser) => ({
+  //         ...remoteAudioUser,
+  //         volumeLevel:
+  //           volumes.find(({ uid }) => remoteAudioUser.uid === uid)?.level ||
+  //           remoteAudioUser.volumeLevel,
+  //       }))
+  //     );
+  //   },
+  //   []
+  // );
 
   React.useEffect(() => {
     const nextRemoteAudioUsers = [
@@ -192,6 +214,7 @@ const useAgora = ({
               )
             );
           },
+          volumeLevel: audioTrack.getVolumeLevel(),
         });
       }
     });
@@ -201,7 +224,8 @@ const useAgora = ({
   React.useEffect(() => {
     setRemoteUsers(client.remoteUsers);
 
-    client.enableAudioVolumeIndicator();
+    // AgoraRTC.setParameter("AUDIO_VOLUME_INDICATION_INTERVAL", 200);
+    // client.enableAudioVolumeIndicator();
 
     const handleUserPublished = async (
       user: IAgoraRTCRemoteUser,
@@ -232,21 +256,22 @@ const useAgora = ({
     const handleUserInfoUpdated = (uid: UID, msg: string) => {
       console.log("event: UserInfoUpdated", uid, msg);
     };
-    const handleVolumeIndicator = (
-      volumes: {
-        level: number;
-        uid: UID;
-      }[]
-    ) => {
-      console.log("event: VolumeIndicator", volumes);
-    };
+    // const handleVolumeIndicator = (
+    //   volumes: {
+    //     level: number;
+    //     uid: UID;
+    //   }[]
+    // ) => {
+    //   console.log("event: VolumeIndicator", volumes);
+    //   updateSpeakerVolumeLevel(volumes);
+    // };
 
     client.on("user-published", handleUserPublished);
     client.on("user-unpublished", handleUserUnpublished);
     client.on("user-joined", handleUserJoined);
     client.on("user-left", handleUserLeft);
     client.on("user-info-updated", handleUserInfoUpdated);
-    client.on("volume-indicator", handleVolumeIndicator);
+    // client.on("volume-indicator", handleVolumeIndicator);
 
     return () => {
       client.off("user-published", handleUserPublished);
@@ -254,9 +279,31 @@ const useAgora = ({
       client.off("user-joined", handleUserJoined);
       client.off("user-left", handleUserLeft);
       client.off("user-info-updated", handleUserInfoUpdated);
-      client.off("volume-indicator", handleVolumeIndicator);
+      // client.off("volume-indicator", handleVolumeIndicator);
     };
   }, [client, role]);
+
+  React.useEffect(() => {
+    if (isJoin) {
+      const intervalId = setInterval(() => {
+        setLocalAudios((localAudios) =>
+          localAudios.map((localAudio) => ({
+            ...localAudio,
+            volumeLevel: localAudio.track.getVolumeLevel(),
+          }))
+        );
+        setRemoteAudioUsers((remoteAudioUsers) =>
+          remoteAudioUsers.map((remoteAudioUser) => ({
+            ...remoteAudioUser,
+            volumeLevel: remoteAudioUser.track.getVolumeLevel(),
+          }))
+        );
+      }, 200);
+      return () => {
+        clearInterval(intervalId);
+      };
+    }
+  }, [isJoin]);
 
   return {
     localAudios,

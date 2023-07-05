@@ -2,7 +2,7 @@ import React from "react";
 import AgoraRTC from "agora-rtc-sdk-ng";
 import useAgora from "./useAgora";
 import useAgora1 from "./useAgora1";
-import AudioController from "./audioController";
+import VolumeController from "./volumeController";
 
 type Props = {
   appId: string;
@@ -36,13 +36,22 @@ const Host: React.FC<Props> = React.memo(({ appId, channel, uid }) => {
   const { isJoin, join, remoteAudioUsers, audios } = React.useMemo(() => {
     const { isJoin, join, remoteAudioUsers } = mode ? agora1 : agora;
     const audios = (mode ? agora1.list : agora.localAudios).map(
-      ({ deviceId, deviceName, volume, setVolume, muted, setMuted }) => ({
+      ({
         deviceId,
         deviceName,
         volume,
         setVolume,
         muted,
         setMuted,
+        volumeLevel,
+      }) => ({
+        deviceId,
+        deviceName,
+        volume,
+        setVolume,
+        muted,
+        setMuted,
+        volumeLevel,
       })
     );
 
@@ -72,13 +81,14 @@ const Host: React.FC<Props> = React.memo(({ appId, channel, uid }) => {
 
   return (
     <div>
-      <h1>{`配信者画面 (channel: ${channel}, uid: ${uid})`}</h1>
+      <h1>{`配信者画面 (appId: ${appId}, channel: ${channel}, uid: ${uid})`}</h1>
       {isJoin ? (
-        <>
+        <div>
           <h2>使用中の音声入力デバイス一覧</h2>
           {audios.map((audio, index) => {
             return (
-              <AudioController
+              <VolumeController
+                type="local"
                 key={index}
                 label={audio.deviceName}
                 volume={audio.volume}
@@ -86,13 +96,15 @@ const Host: React.FC<Props> = React.memo(({ appId, channel, uid }) => {
                 setVolume={audio.setVolume}
                 muted={audio.muted}
                 setMuted={audio.setMuted}
+                volumeLevel={audio.volumeLevel}
               />
             );
           })}
           <h2>他の配信者一覧</h2>
           {remoteAudioUsers.map((remoteAudioUser) => (
-            <AudioController
+            <VolumeController
               key={remoteAudioUser.uid}
+              type="remote"
               label={`${remoteAudioUser.uid}`}
               volume={remoteAudioUser.volume}
               maxVolume={100}
@@ -101,56 +113,60 @@ const Host: React.FC<Props> = React.memo(({ appId, channel, uid }) => {
               setMuted={(muted) =>
                 remoteAudioUser.setMuted(muted, remoteAudioUser.volume)
               }
+              volumeLevel={remoteAudioUser.volumeLevel}
             />
           ))}
-        </>
+        </div>
       ) : (
         <>
-          <h2>配信手法</h2>
           <div>
-            {[
-              { label: "複数音声入力を1つのclientで配信する", value: 0 },
-              { label: "各音声入力につき1つのclientで配信する", value: 1 },
-            ].map(({ label, value }, index) => (
-              <p key={index}>
+            <h2>配信手法</h2>
+            <div>
+              {[
+                { label: "複数音声入力を1つのclientで配信する", value: 0 },
+                { label: "各音声入力につき1つのclientで配信する", value: 1 },
+              ].map(({ label, value }, index) => (
+                <p key={index}>
+                  <input
+                    type="radio"
+                    value={value}
+                    checked={mode === value}
+                    onChange={() => setMode(value)}
+                  />
+                  <span>{label}</span>
+                </p>
+              ))}
+            </div>
+            <h2>音声入力デバイス</h2>
+            {audioInputDevices.map((audioInputDevice) => (
+              <p key={audioInputDevice.deviceId}>
                 <input
-                  type="radio"
-                  value={value}
-                  checked={mode === value}
-                  onChange={() => setMode(value)}
+                  type="checkbox"
+                  checked={
+                    !!selectedAudioInputDevices.find(
+                      (selectedAudioInputDevice) =>
+                        selectedAudioInputDevice.deviceId ===
+                        audioInputDevice.deviceId
+                    )
+                  }
+                  onChange={(event) => {
+                    setSelectedAudioInputDevices((prevDevices) =>
+                      audioInputDevices.filter((_audioInputDevice) =>
+                        _audioInputDevice.deviceId === audioInputDevice.deviceId
+                          ? event.target.checked
+                          : prevDevices.find(
+                              (prevDevice) =>
+                                prevDevice.deviceId ===
+                                _audioInputDevice.deviceId
+                            )
+                      )
+                    );
+                  }}
                 />
-                <span>{label}</span>
+                <span>{audioInputDevice.label}</span>
               </p>
             ))}
           </div>
-          <h2>音声入力デバイス</h2>
-          {audioInputDevices.map((audioInputDevice) => (
-            <p key={audioInputDevice.deviceId}>
-              <input
-                type="checkbox"
-                checked={
-                  !!selectedAudioInputDevices.find(
-                    (selectedAudioInputDevice) =>
-                      selectedAudioInputDevice.deviceId ===
-                      audioInputDevice.deviceId
-                  )
-                }
-                onChange={(event) => {
-                  setSelectedAudioInputDevices((prevDevices) =>
-                    audioInputDevices.filter((_audioInputDevice) =>
-                      _audioInputDevice.deviceId === audioInputDevice.deviceId
-                        ? event.target.checked
-                        : prevDevices.find(
-                            (prevDevice) =>
-                              prevDevice.deviceId === _audioInputDevice.deviceId
-                          )
-                    )
-                  );
-                }}
-              />
-              <span>{audioInputDevice.label}</span>
-            </p>
-          ))}
           <button
             onClick={() => join(selectedAudioInputDevices)}
             disabled={selectedAudioInputDevices.length === 0}

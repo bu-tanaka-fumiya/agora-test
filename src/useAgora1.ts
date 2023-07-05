@@ -38,6 +38,7 @@ const useAgora1 = ({
       setVolume: (volume: number) => void;
       muted: boolean;
       setMuted: (muted: boolean) => void;
+      volumeLevel: number;
     }[]
   >([]);
 
@@ -49,6 +50,7 @@ const useAgora1 = ({
       setVolume: (volume: number) => void;
       muted: boolean;
       setMuted: (muted: boolean, volume: number) => void;
+      volumeLevel: number;
     }[]
   >([]);
 
@@ -100,6 +102,7 @@ const useAgora1 = ({
                   )
                 );
               },
+              volumeLevel: microphoneTrack.getVolumeLevel(),
             },
           ]);
         }
@@ -166,6 +169,7 @@ const useAgora1 = ({
               )
             );
           },
+          volumeLevel: audioTrack.getVolumeLevel(),
         });
       }
     });
@@ -181,7 +185,7 @@ const useAgora1 = ({
 
     setRemoteUsers(client.remoteUsers);
 
-    client.enableAudioVolumeIndicator();
+    // client.enableAudioVolumeIndicator();
 
     const isMyClient = (uid: UID) =>
       list.find((item) => item.client.uid === uid);
@@ -231,21 +235,21 @@ const useAgora1 = ({
       }
       console.log("event: UserInfoUpdated", uid, msg);
     };
-    const handleVolumeIndicator = (
-      volumes: {
-        level: number;
-        uid: UID;
-      }[]
-    ) => {
-      console.log("event: VolumeIndicator", volumes);
-    };
+    // const handleVolumeIndicator = (
+    //   volumes: {
+    //     level: number;
+    //     uid: UID;
+    //   }[]
+    // ) => {
+    //   console.log("event: VolumeIndicator", volumes);
+    // };
 
     client.on("user-published", handleUserPublished);
     client.on("user-unpublished", handleUserUnpublished);
     client.on("user-joined", handleUserJoined);
     client.on("user-left", handleUserLeft);
     client.on("user-info-updated", handleUserInfoUpdated);
-    client.on("volume-indicator", handleVolumeIndicator);
+    // client.on("volume-indicator", handleVolumeIndicator);
 
     return () => {
       client.off("user-published", handleUserPublished);
@@ -253,10 +257,32 @@ const useAgora1 = ({
       client.off("user-joined", handleUserJoined);
       client.off("user-left", handleUserLeft);
       client.off("user-info-updated", handleUserInfoUpdated);
-      client.off("volume-indicator", handleVolumeIndicator);
+      // client.off("volume-indicator", handleVolumeIndicator);
     };
     // }
   }, [list, role]);
+
+  React.useEffect(() => {
+    if (isJoin) {
+      const intervalId = setInterval(() => {
+        setList((list) =>
+          list.map((item) => ({
+            ...item,
+            volumeLevel: item.track.getVolumeLevel(),
+          }))
+        );
+        setRemoteAudioUsers((remoteAudioUsers) =>
+          remoteAudioUsers.map((remoteAudioUser) => ({
+            ...remoteAudioUser,
+            volumeLevel: remoteAudioUser.track.getVolumeLevel(),
+          }))
+        );
+      }, 200);
+      return () => {
+        clearInterval(intervalId);
+      };
+    }
+  }, [isJoin]);
 
   return {
     list,
